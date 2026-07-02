@@ -1,0 +1,53 @@
+name: Build AIC8800 Wi-Fi and Bluetooth Driver
+on: [workflow_dispatch]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Fork (Bluetooth Branch)
+        uses: actions/checkout@v4
+        with:
+          ref: bluetooth
+
+      - name: Install Debian build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bc bison flex libelf-dev libssl-dev
+
+      - name: Fetch Target Debian Kernel Headers
+        run: |
+          mkdir -p extracted_headers
+          # Attempt direct pool fetch or use official snapshot timeline archive
+          wget http://ftp.debian.org/debian/pool/main/l/linux/linux-headers-6.12.86+deb13-amd64_6.12.86-1_amd64.deb || \
+          wget http://snapshot.debian.org/archive/debian/20260101T000000Z/pool/main/l/linux/linux-headers-6.12.86+deb13-amd64_6.12.86-1_amd64.deb
+          dpkg-deb -x linux-headers-*.deb extracted_headers/
+          
+      - name: Compile Wi-Fi Module
+        run: |
+          cd drivers/aic8800
+          KDIR_PATH="../../../extracted_headers/usr/src/linux-headers-6.12.86+deb13-amd64"
+          make KDIR="$KDIR_PATH"
+
+      - name: Compile Bluetooth Module
+        run: |
+          cd drivers/aic8800/aic_btusb
+          KDIR_PATH="../../../../extracted_headers/usr/src/linux-headers-6.12.86+deb13-amd64"
+          make KDIR="$KDIR_PATH"
+
+      - name: Package Binaries and Firmware
+        run: |
+          mkdir -p dropzone/firmware
+          # Wi-Fi & core modules
+          cp drivers/aic8800/aic8800_fdrv.ko dropzone/
+          cp drivers/aic8800/aic_load_fw/aic_load_fw.ko dropzone/
+          # Bluetooth module
+          cp drivers/aic8800/aic_btusb/aic_btusb.ko dropzone/
+          # Firmware files from the 'fw' directory on this branch
+          cp -r fw/aic8800D80 dropzone/firmware/
+
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: aic8800-bt-wifi-debian-6.12
+          path: dropzone/
