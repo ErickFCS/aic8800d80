@@ -15,35 +15,43 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y bc bison flex libelf-dev libssl-dev
 
-      - name: Fetch Target Debian Kernel Headers
+      - name: Fetch and Merge Complete Debian Kernel Headers
         run: |
-          mkdir -p extracted_headers
-          # Attempt direct pool fetch or use official snapshot timeline archive
-          wget http://ftp.debian.org/debian/pool/main/l/linux/linux-headers-6.12.86+deb13-amd64_6.12.86-1_amd64.deb || \
-          wget http://snapshot.debian.org/archive/debian/20260101T000000Z/pool/main/l/linux/linux-headers-6.12.86+deb13-amd64_6.12.86-1_amd64.deb
-          dpkg-deb -x linux-headers-*.deb extracted_headers/
+          mkdir -p merged_headers
           
+          # 1. Download both the architecture-specific package and the common package
+          BASE_URL="http://ftp.debian.org/debian/pool/main/l/linux"
+          SNAPSHOT_URL="http://snapshot.debian.org/archive/debian/20260101T000000Z/pool/main/l/linux"
+          
+          wget $BASE_URL/linux-headers-6.12.86+deb13-amd64_6.12.86-1_amd64.deb || \
+          wget $SNAPSHOT_URL/linux-headers-6.12.86+deb13-amd64_6.12.86-1_amd64.deb
+          
+          wget $BASE_URL/linux-headers-6.12.86+deb13-common_6.12.86-1_all.deb || \
+          wget $SNAPSHOT_URL/linux-headers-6.12.86+deb13-common_6.12.86-1_all.deb
+
+          # 2. Extract both into our tracking directory
+          dpkg-deb -x linux-headers-6.12.86+deb13-amd64_6.12.86-1_amd64.deb merged_headers/
+          dpkg-deb -x linux-headers-6.12.86+deb13-common_6.12.86-1_all.deb merged_headers/
+
       - name: Compile Wi-Fi Module
         run: |
           cd drivers/aic8800
-          KDIR_PATH="../../../extracted_headers/usr/src/linux-headers-6.12.86+deb13-amd64"
+          # We resolve KDIR to an immutable, absolute path
+          KDIR_PATH="$GITHUB_WORKSPACE/merged_headers/usr/src/linux-headers-6.12.86+deb13-amd64"
           make KDIR="$KDIR_PATH"
 
       - name: Compile Bluetooth Module
         run: |
           cd drivers/aic8800/aic_btusb
-          KDIR_PATH="../../../../extracted_headers/usr/src/linux-headers-6.12.86+deb13-amd64"
+          KDIR_PATH="$GITHUB_WORKSPACE/merged_headers/usr/src/linux-headers-6.12.86+deb13-amd64"
           make KDIR="$KDIR_PATH"
 
       - name: Package Binaries and Firmware
         run: |
           mkdir -p dropzone/firmware
-          # Wi-Fi & core modules
           cp drivers/aic8800/aic8800_fdrv.ko dropzone/
           cp drivers/aic8800/aic_load_fw/aic_load_fw.ko dropzone/
-          # Bluetooth module
           cp drivers/aic8800/aic_btusb/aic_btusb.ko dropzone/
-          # Firmware files from the 'fw' directory on this branch
           cp -r fw/aic8800D80 dropzone/firmware/
 
       - name: Upload Build Artifact
