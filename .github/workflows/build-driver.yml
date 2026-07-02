@@ -13,8 +13,7 @@ jobs:
       - name: Install Debian build dependencies
         run: |
           sudo apt-get update
-          # Added 'dwarves' here to provide the pahole utility
-          sudo apt-get install -y bc bison flex libelf-dev libssl-dev dwarves
+          sudo apt-get install -y bc bison flex libelf-dev libssl-dev
 
       - name: Fetch and Extract Complete Debian Kernel Framework
         run: |
@@ -37,8 +36,8 @@ jobs:
       - name: Compile Modules
         run: |
           cd drivers/aic8800
-          # Appended explicit override to drop BTF payload checking requirements
-          make KDIR="/usr/src/linux-headers-6.12.86+deb13-amd64" CONFIG_DEBUG_INFO_BTF_MODULES=n
+          # Stub out PAHOLE to completely skip the BTF debugging generation step
+          make KDIR="/usr/src/linux-headers-6.12.86+deb13-amd64" PAHOLE=/bin/true
 
       - name: Package Binaries and Firmware
         run: |
