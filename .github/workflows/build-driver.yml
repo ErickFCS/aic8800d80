@@ -13,25 +13,23 @@ jobs:
       - name: Install Debian build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y bc bison flex libelf-dev libssl-dev
+          # Added 'dwarves' here to provide the pahole utility
+          sudo apt-get install -y bc bison flex libelf-dev libssl-dev dwarves
 
       - name: Fetch and Extract Complete Debian Kernel Framework
         run: |
           BASE_URL="http://ftp.debian.org/debian/pool/main/l/linux"
           SNAPSHOT_URL="http://snapshot.debian.org/archive/debian/20260101T000000Z/pool/main/l/linux"
           
-          # Download headers (Architecture-specific & Common)
           wget $BASE_URL/linux-headers-6.12.86+deb13-amd64_6.12.86-1_amd64.deb || \
           wget $SNAPSHOT_URL/linux-headers-6.12.86+deb13-amd64_6.12.86-1_amd64.deb
           
           wget $BASE_URL/linux-headers-6.12.86+deb13-common_6.12.86-1_all.deb || \
           wget $SNAPSHOT_URL/linux-headers-6.12.86+deb13-common_6.12.86-1_all.deb
 
-          # Download the Kbuild infrastructure engine that provides Makefile.btf
           wget $BASE_URL/linux-kbuild-6.12.86+deb13_6.12.86-1_amd64.deb || \
           wget $SNAPSHOT_URL/linux-kbuild-6.12.86+deb13_6.12.86-1_amd64.deb
 
-          # Extract all three payloads directly to root for flawless path resolution
           sudo dpkg-deb -x linux-headers-6.12.86+deb13-amd64_6.12.86-1_amd64.deb /
           sudo dpkg-deb -x linux-headers-6.12.86+deb13-common_6.12.86-1_all.deb /
           sudo dpkg-deb -x linux-kbuild-6.12.86+deb13_6.12.86-1_amd64.deb /
@@ -39,7 +37,8 @@ jobs:
       - name: Compile Modules
         run: |
           cd drivers/aic8800
-          make KDIR="/usr/src/linux-headers-6.12.86+deb13-amd64"
+          # Appended explicit override to drop BTF payload checking requirements
+          make KDIR="/usr/src/linux-headers-6.12.86+deb13-amd64" CONFIG_DEBUG_INFO_BTF_MODULES=n
 
       - name: Package Binaries and Firmware
         run: |
