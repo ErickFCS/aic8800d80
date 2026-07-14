@@ -1,5 +1,16 @@
 name: Build AIC8800 Wi-Fi and Bluetooth Driver
-on: [workflow_dispatch]
+on:
+  workflow_dispatch:
+    inputs:
+      kernel_version:
+        description: 'Debian Kernel Version (e.g., 6.12.94)'
+        required: true
+        type: string
+      deb_revision:
+        description: 'Debian Package Revision (e.g., 1)'
+        required: true
+        default: '1'
+        type: string
 
 jobs:
   build:
@@ -20,24 +31,24 @@ jobs:
           BASE_URL="http://ftp.debian.org/debian/pool/main/l/linux"
           SNAPSHOT_URL="http://snapshot.debian.org/archive/debian/20260101T000000Z/pool/main/l/linux"
           
-          wget $BASE_URL/linux-headers-6.12.86+deb13-amd64_6.12.86-1_amd64.deb || \
-          wget $SNAPSHOT_URL/linux-headers-6.12.86+deb13-amd64_6.12.86-1_amd64.deb
+          wget $BASE_URL/linux-headers-${{ inputs.kernel_version }}+deb13-amd64_${{ inputs.kernel_version }}-${{ inputs.deb_revision }}_amd64.deb || \
+          wget $SNAPSHOT_URL/linux-headers-${{ inputs.kernel_version }}+deb13-amd64_${{ inputs.kernel_version }}-${{ inputs.deb_revision }}_amd64.deb
           
-          wget $BASE_URL/linux-headers-6.12.86+deb13-common_6.12.86-1_all.deb || \
-          wget $SNAPSHOT_URL/linux-headers-6.12.86+deb13-common_6.12.86-1_all.deb
+          wget $BASE_URL/linux-headers-${{ inputs.kernel_version }}+deb13-common_${{ inputs.kernel_version }}-${{ inputs.deb_revision }}_all.deb || \
+          wget $SNAPSHOT_URL/linux-headers-${{ inputs.kernel_version }}+deb13-common_${{ inputs.kernel_version }}-${{ inputs.deb_revision }}_all.deb
 
-          wget $BASE_URL/linux-kbuild-6.12.86+deb13_6.12.86-1_amd64.deb || \
-          wget $SNAPSHOT_URL/linux-kbuild-6.12.86+deb13_6.12.86-1_amd64.deb
+          wget $BASE_URL/linux-kbuild-${{ inputs.kernel_version }}+deb13_${{ inputs.kernel_version }}-${{ inputs.deb_revision }}_amd64.deb || \
+          wget $SNAPSHOT_URL/linux-kbuild-${{ inputs.kernel_version }}+deb13_${{ inputs.kernel_version }}-${{ inputs.deb_revision }}_amd64.deb
 
-          sudo dpkg-deb -x linux-headers-6.12.86+deb13-amd64_6.12.86-1_amd64.deb /
-          sudo dpkg-deb -x linux-headers-6.12.86+deb13-common_6.12.86-1_all.deb /
-          sudo dpkg-deb -x linux-kbuild-6.12.86+deb13_6.12.86-1_amd64.deb /
+          sudo dpkg-deb -x linux-headers-${{ inputs.kernel_version }}+deb13-amd64_${{ inputs.kernel_version }}-${{ inputs.deb_revision }}_amd64.deb /
+          sudo dpkg-deb -x linux-headers-${{ inputs.kernel_version }}+deb13-common_${{ inputs.kernel_version }}-${{ inputs.deb_revision }}_all.deb /
+          sudo dpkg-deb -x linux-kbuild-${{ inputs.kernel_version }}+deb13_${{ inputs.kernel_version }}-${{ inputs.deb_revision }}_amd64.deb /
 
       - name: Compile Modules
         run: |
           cd drivers/aic8800
           # Stub out PAHOLE to completely skip the BTF debugging generation step
-          make KDIR="/usr/src/linux-headers-6.12.86+deb13-amd64" PAHOLE=/bin/true
+          make KDIR="/usr/src/linux-headers-${{ inputs.kernel_version }}+deb13-amd64" PAHOLE=/bin/true
 
       - name: Package Binaries and Firmware
         run: |
